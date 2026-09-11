@@ -38,7 +38,7 @@ SHOW REGIONS FROM DATABASE ti4601;
 ### Paso 4 - Aplicar y leer esquema del ejemplo
 
 ```bash
-\i labs/lab1-cluster/schema.sql
+\i sql-scripts/schema.sql
 ```
 
 ## Integrantes
