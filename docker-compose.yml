@@ -1,11 +1,4 @@
 # TI-4601 — orquestación declarativa
-#
-# Perfiles:
-#   (ninguno)  postgres          → Semanas 2–4 + lab concurrencia
-#   lab1       cockroachdb ×3    → Lab 1 (S5) y P1 (S5–S8)
-#
-# Cliente Python: siempre vía `docker compose run --rm app …`
-# (Compose habilita el perfil del servicio target automáticamente).
 
 name: ti4601
 
@@ -52,7 +45,7 @@ services:
 
   crdb-1:
     image: cockroachdb/cockroach:v24.3.0
-    profiles: ["lab1"]
+    profiles: ["proy1"]
     container_name: ti4601-crdb-1
     hostname: crdb-1
     command: start --insecure --advertise-addr=crdb-1 --join=crdb-1,crdb-2,crdb-3 --locality=region=cr-sj,zone=a --cache=256MiB --max-sql-memory=256MiB
@@ -66,7 +59,7 @@ services:
 
   crdb-2:
     image: cockroachdb/cockroach:v24.3.0
-    profiles: ["lab1"]
+    profiles: ["proy1"]
     container_name: ti4601-crdb-2
     hostname: crdb-2
     command: start --insecure --advertise-addr=crdb-2 --join=crdb-1,crdb-2,crdb-3 --locality=region=cr-limon,zone=a --cache=256MiB --max-sql-memory=256MiB
@@ -77,7 +70,7 @@ services:
 
   crdb-3:
     image: cockroachdb/cockroach:v24.3.0
-    profiles: ["lab1"]
+    profiles: ["proy1"]
     container_name: ti4601-crdb-3
     hostname: crdb-3
     command: start --insecure --advertise-addr=crdb-3 --join=crdb-1,crdb-2,crdb-3 --locality=region=us-east,zone=a --cache=256MiB --max-sql-memory=256MiB
@@ -88,7 +81,7 @@ services:
 
   crdb-init:
     image: cockroachdb/cockroach:v24.3.0
-    profiles: ["lab1"]
+    profiles: ["proy1"]
     container_name: ti4601-crdb-init
     depends_on:
       - crdb-1
@@ -117,7 +110,7 @@ services:
   app-crdb:
     build: .
     image: ti4601:local
-    profiles: ["lab1"]
+    profiles: ["proy1"]
     working_dir: /src
     environment:
       # Lista de hosts: cada operación abre una conexión nueva y puede continuar
