@@ -62,4 +62,4 @@ proy1-status:
 
 proy1-check:
 	$(COMPOSE) --profile proy1 run --rm --no-deps app-crdb \
-		python3 labs/proy1-cluster/verify_cluster.py
+		python3 scripts/verify_cluster.py

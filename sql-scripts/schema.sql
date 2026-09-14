@@ -35,3 +35,24 @@ CREATE TABLE Movimiento(
     fecha TIMESTAMP NOT NULL DEFAULT now(),
     region_movimiento crdb_internal_region NOT NULL
 ) LOCALITY REGIONAL BY ROW AS region_movimiento;
+
+-- Esta tabla NO es parte del dominio bancario (no representa clientes,
+-- cuentas ni movimientos). La agregamos aparte para el E4 (falla de nodo).
+-- Motivo: Cliente/Cuenta/Movimiento son REGIONAL BY ROW, y en nuestro
+-- cluster solo hay un nodo por región. Eso significa que no tenemos
+-- garantía de que esas tablas queden con 3 réplicas votantes repartidas
+-- una por nodo (el rango podría terminar subreplicado). Si matamos un
+-- nodo y probamos ahí, podríamos estar midiendo "se perdió mi única
+-- copia" en vez de "perdimos 1 de 3 y seguimos con mayoría", que es lo
+-- que E4 realmente quiere demostrar.
+-- Por eso ControlDisponibilidad se deja SIN locality regional: usa el
+-- factor de replicación por defecto del cluster (3 nodos -> 3 réplicas
+-- votantes, una en cada nodo). Antes de apagar un nodo verificamos con
+-- SHOW RANGES que voting_replicas tiene exactamente {1,2,3}, y ahí sí
+-- podemos afirmar que estamos probando quórum Raft real (2 de 3), no
+-- otra cosa.
+CREATE TABLE ControlDisponibilidad (
+    id INT8 PRIMARY KEY,
+    version INT8 NOT NULL DEFAULT 0,
+    actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);

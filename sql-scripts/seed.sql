@@ -37,3 +37,11 @@ VALUES
   (SELECT id FROM Cuenta WHERE cliente_id = (SELECT id FROM Cliente WHERE nombre = 'Michael')),
   50000, '2026-03-06', 'cr-sj'
 );
+
+-- Fila única para la sonda de E4. No representa nada del negocio: solo
+-- necesitamos algo que podamos golpear con UPDATE ... SET version = version + 1
+-- antes y después de apagar un nodo, para medir RTO y comprobar que la
+-- version no retrocede (RPO = 0).
+INSERT INTO ControlDisponibilidad (id, version)
+VALUES (1, 0)
+ON CONFLICT (id) DO NOTHING;
