@@ -1,0 +1,83 @@
+ Container ti4601-app-crdb-run-4dda10943c7f Creating 
+ Container ti4601-app-crdb-run-4dda10943c7f Created 
+ database |  region  | primary | secondary | zones 
+----------+----------+---------+-----------+-------
+ ti4601   | cr-sj    | t       | f         | {a}
+ ti4601   | cr-limon | f       | f         | {a}
+ ti4601   | us-east  | f       | f         | {a}
+(3 rows)
+
+ table_name |                       create_statement                       
+------------+--------------------------------------------------------------
+ cliente    | CREATE TABLE public.cliente (                               +
+            |         id UUID NOT NULL DEFAULT gen_random_uuid(),         +
+            |         nombre STRING NOT NULL,                             +
+            |         documento INT8 NOT NULL,                            +
+            |         region_cliente public.crdb_internal_region NOT NULL,+
+            |         CONSTRAINT cliente_pkey PRIMARY KEY (id ASC),       +
+            |         UNIQUE INDEX cliente_documento_key (documento ASC)  +
+            | ) LOCALITY REGIONAL BY ROW AS region_cliente
+(1 row)
+
+ table_name |                                         create_statement                                         
+------------+--------------------------------------------------------------------------------------------------
+ cuenta     | CREATE TABLE public.cuenta (                                                                    +
+            |         id UUID NOT NULL DEFAULT gen_random_uuid(),                                             +
+            |         monto DECIMAL NOT NULL DEFAULT 0:::DECIMAL,                                             +
+            |         tipo STRING NOT NULL,                                                                   +
+            |         cliente_id UUID NOT NULL,                                                               +
+            |         region_cuenta public.crdb_internal_region NOT NULL,                                     +
+            |         CONSTRAINT cuenta_pkey PRIMARY KEY (id ASC),                                            +
+            |         CONSTRAINT cuenta_cliente_id_fkey FOREIGN KEY (cliente_id) REFERENCES public.cliente(id)+
+            | ) LOCALITY REGIONAL BY ROW AS region_cuenta
+(1 row)
+
+ table_name |                                              create_statement                                               
+------------+-------------------------------------------------------------------------------------------------------------
+ movimiento | CREATE TABLE public.movimiento (                                                                           +
+            |         id UUID NOT NULL DEFAULT gen_random_uuid(),                                                        +
+            |         cuenta_origen UUID NOT NULL,                                                                       +
+            |         cuenta_destino UUID NOT NULL,                                                                      +
+            |         monto DECIMAL NOT NULL,                                                                            +
+            |         fecha TIMESTAMP NOT NULL DEFAULT now():::TIMESTAMP,                                                +
+            |         region_movimiento public.crdb_internal_region NOT NULL,                                            +
+            |         CONSTRAINT movimiento_pkey PRIMARY KEY (id ASC),                                                   +
+            |         CONSTRAINT movimiento_cuenta_origen_fkey FOREIGN KEY (cuenta_origen) REFERENCES public.cuenta(id), +
+            |         CONSTRAINT movimiento_cuenta_destino_fkey FOREIGN KEY (cuenta_destino) REFERENCES public.cuenta(id)+
+            | ) LOCALITY REGIONAL BY ROW AS region_movimiento
+(1 row)
+
+      table_name       |                             create_statement                             
+-----------------------+--------------------------------------------------------------------------
+ controldisponibilidad | CREATE TABLE public.controldisponibilidad (                             +
+                       |         id INT8 NOT NULL,                                               +
+                       |         version INT8 NOT NULL DEFAULT 0:::INT8,                         +
+                       |         actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now():::TIMESTAMPTZ,+
+                       |         CONSTRAINT controldisponibilidad_pkey PRIMARY KEY (id ASC)      +
+                       | ) LOCALITY REGIONAL BY TABLE IN PRIMARY REGION
+(1 row)
+
+ region_cliente | count 
+----------------+-------
+ cr-limon       |     1
+ cr-sj          |     2
+ us-east        |     1
+(3 rows)
+
+ region_cuenta | count 
+---------------+-------
+ cr-limon      |     1
+ cr-sj         |     2
+ us-east       |     1
+(3 rows)
+
+ region_movimiento | count 
+-------------------+-------
+ cr-sj             |     2
+(1 row)
+
+               start_key                |   end_key    | range_id |       range_size_mb        | lease_holder | lease_holder_locality | replicas |                            replica_localities                            | voting_replicas | non_voting_replicas | learner_replicas | split_enforced_until | range_size |                                                                                                   span_stats                                                                                                   
+----------------------------------------+--------------+----------+----------------------------+--------------+-----------------------+----------+--------------------------------------------------------------------------+-----------------+---------------------+------------------+----------------------+------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ <before:/Table/110/1/"\xc0"/PrefixEnd> | <after:/Max> |       86 | 0.000036000000000000000000 |            1 | region=cr-sj,zone=a   | {1,2,3}  | {"region=cr-sj,zone=a","region=us-east,zone=a","region=cr-limon,zone=a"} | {1,3,2}         | {}                  | {}               |                      |         36 | {"approximate_disk_bytes": 20239, "intent_bytes": 0, "intent_count": 0, "key_bytes": 18, "key_count": 1, "live_bytes": 36, "live_count": 1, "sys_bytes": 309, "sys_count": 6, "val_bytes": 18, "val_count": 1}
+(1 row)
+

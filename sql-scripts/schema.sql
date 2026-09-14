@@ -45,11 +45,16 @@ CREATE TABLE Movimiento(
 -- nodo y probamos ahí, podríamos estar midiendo "se perdió mi única
 -- copia" en vez de "perdimos 1 de 3 y seguimos con mayoría", que es lo
 -- que E4 realmente quiere demostrar.
--- Por eso ControlDisponibilidad se deja SIN locality regional: usa el
--- factor de replicación por defecto del cluster (3 nodos -> 3 réplicas
--- votantes, una en cada nodo). Antes de apagar un nodo verificamos con
--- SHOW RANGES que voting_replicas tiene exactamente {1,2,3}, y ahí sí
--- podemos afirmar que estamos probando quórum Raft real (2 de 3), no
+-- Por eso ControlDisponibilidad NO lleva REGIONAL BY ROW: no queremos que
+-- se fragmente por fila. Al no declarar ninguna LOCALITY, Cockroach le
+-- asigna la que trae por defecto en una base multi-región:
+-- REGIONAL BY TABLE IN PRIMARY REGION (toda la tabla, sin fragmentar,
+-- prefiere su leaseholder en la región primaria). Verificado con
+-- SHOW CREATE TABLE. Eso no afecta el punto que nos interesa: sus 3
+-- réplicas físicas siguen repartiéndose una por nodo (RF=3 del cluster).
+-- Antes de apagar un nodo verificamos con SHOW RANGES que voting_replicas
+-- tiene exactamente {1,2,3}, y ahí sí podemos afirmar que estamos
+-- probando quórum Raft real (2 de 3), no
 -- otra cosa.
 CREATE TABLE ControlDisponibilidad (
     id INT8 PRIMARY KEY,

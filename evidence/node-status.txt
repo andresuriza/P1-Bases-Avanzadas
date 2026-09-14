@@ -1,0 +1,10 @@
+docker compose --profile proy1 ps
+NAME            IMAGE                           COMMAND                  SERVICE   CREATED          STATUS          PORTS
+ti4601-crdb-1   cockroachdb/cockroach:v24.3.0   "/cockroach/cockroac…"   crdb-1    31 minutes ago   Up 31 minutes   127.0.0.1:8080->8080/tcp, 127.0.0.1:26257->26257/tcp
+ti4601-crdb-2   cockroachdb/cockroach:v24.3.0   "/cockroach/cockroac…"   crdb-2    31 minutes ago   Up 31 minutes   8080/tcp, 26257/tcp
+ti4601-crdb-3   cockroachdb/cockroach:v24.3.0   "/cockroach/cockroac…"   crdb-3    31 minutes ago   Up 31 minutes   8080/tcp, 26257/tcp
+docker exec ti4601-crdb-1 cockroach node status --insecure
+id	address	sql_address	build	started_at	updated_at	locality	is_available	is_live
+1	crdb-1:26257	crdb-1:26257	v24.3.0	2026-09-14 21:17:12.086134 +0000 UTC	2026-09-14 21:49:03.127189 +0000 UTC	region=cr-sj,zone=a	true	true
+2	crdb-3:26257	crdb-3:26257	v24.3.0	2026-09-14 21:17:12.505119 +0000 UTC	2026-09-14 21:49:03.5517 +0000 UTC	region=us-east,zone=a	true	true
+3	crdb-2:26257	crdb-2:26257	v24.3.0	2026-09-14 21:17:13.081366 +0000 UTC	2026-09-14 21:49:04.129992 +0000 UTC	region=cr-limon,zone=a	true	true

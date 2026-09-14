@@ -1,0 +1,13 @@
+docker compose --profile proy1 run --rm --no-deps app-crdb \
+	python3 scripts/verify_cluster.py
+ Container ti4601-app-crdb-run-714058360f9a Creating 
+ Container ti4601-app-crdb-run-714058360f9a Created 
+[ OK ] tres nodos/localities vivos
+[ OK ] tres regiones configuradas en ti4601
+[ OK ] cliente/cuenta/movimiento son REGIONAL BY ROW
+[ OK ] hay clientes en las tres regiones
+[ OK ] existe al menos un movimiento que cruza región
+[ OK ] ControlDisponibilidad tiene tres votantes
+
+Resultado: 6/6 verificaciones.
+Configuración lista para mediciones (E3) y falla de nodo (E4).
