@@ -23,6 +23,7 @@ services:
     networks:
       - curso
 
+  # Cliente (PostgreDB)
   app:
     build: .
     image: ti4601:local
@@ -43,6 +44,7 @@ services:
       - curso
     profiles: ["client"]
 
+  # Nodo 1
   crdb-1:
     image: cockroachdb/cockroach:v24.3.0
     profiles: ["proy1"]
@@ -57,6 +59,7 @@ services:
     networks:
       - curso
 
+  # Nodo 2
   crdb-2:
     image: cockroachdb/cockroach:v24.3.0
     profiles: ["proy1"]
@@ -68,6 +71,7 @@ services:
     networks:
       - curso
 
+  # Nodo 3
   crdb-3:
     image: cockroachdb/cockroach:v24.3.0
     profiles: ["proy1"]
@@ -79,6 +83,7 @@ services:
     networks:
       - curso
 
+  # Iniciador del Cluster
   crdb-init:
     image: cockroachdb/cockroach:v24.3.0
     profiles: ["proy1"]
@@ -107,6 +112,7 @@ services:
       - curso
     restart: "no"
 
+  # Cliente (CockroachDB)
   app-crdb:
     build: .
     image: ti4601:local

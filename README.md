@@ -97,7 +97,23 @@ docker compose --profile proy1 run --rm --no-deps app-crdb \
 `ControlDisponibilidad` (debe mostrar `voting_replicas` con 3 IDs, uno por
 nodo). Esa evidencia es la que sustenta E2 y la precondición de E4.
 
-### Paso 8 - Falla de nodo (E4)
+### Paso 8 - Medición de latencias local y remota (E3)
+
+Desde el **host**, ejecute el script de benchmarking para capturar el rendimiento (mediana p50 y percentil p99) de las operaciones locales y remotas (lecturas y escrituras) cumpliendo con el mínimo de 30 corridas y descarte de _cold start_ mediante las rondas de warm-up:
+
+```bash
+docker compose --profile proy1 run --rm --no-deps app-crdb \
+  python3 scripts/measure_latency.py \
+    --gateway crdb-1 \
+    --runs 50 \
+    --warmup 5 \
+    --csv evidence/e3-latencias.csv \
+  | tee evidence/e3-latencias.txt
+```
+
+Esto imprimirá el resumen de latencias en la terminal y guardará las muestras detalladas en `evidence/e3-latencias.csv` para adjuntarlas como evidencia en el reporte.
+
+### Paso 9 - Falla de nodo (E4)
 
 Necesitan **dos terminales** en el host. `ControlDisponibilidad` es la
 tabla verificada con 3 réplicas votantes (Paso 7); es la única sobre la

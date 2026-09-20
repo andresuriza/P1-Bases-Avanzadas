@@ -1,0 +1,13 @@
+=== Proyecto 1 · gateway=crdb-1 · warmup=5 · n=50 ===
+Región del gateway: cr-sj
+IDs de prueba detectados: {'cr-sj': UUID('d75c2818-06ca-443d-a327-249487c070a3'), 'cr-limon': UUID('2be4c614-9a0e-431f-8546-ae79badc7ed4')}
+
+operation locality home_region n p50_ms p99_ms
+read      local    cr-sj       50   0.657   0.959
+read      remote   cr-limon    50   1.366   1.750
+write     local    cr-sj       50   3.627   7.176
+write     remote   cr-limon    50   5.384   8.824
+
+Muestras crudas: evidence/e3-latencias.csv
+
+Nota: Docker corre las tres regiones en una sola máquina. Un ratio local/remoto cercano a 1 no invalida el experimento.
