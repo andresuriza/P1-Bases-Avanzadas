@@ -23,6 +23,27 @@ services:
     networks:
       - curso
 
+  # Réplica de Lectura (Simulada para el análisis)
+  postgres-replica:
+    image: postgres:16
+    container_name: ti4601-postgres-replica
+    environment:
+      POSTGRES_USER: ti4601
+      POSTGRES_PASSWORD: ti4601
+      POSTGRES_DB: ti4601
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - pgdata_replica:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ti4601 -d ti4601"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    networks:
+      - curso
+
   # Cliente (PostgreDB)
   app:
     build: .
@@ -39,6 +60,8 @@ services:
       - .:/src
     depends_on:
       postgres:
+        condition: service_healthy
+      postgres-replica:
         condition: service_healthy
     networks:
       - curso
@@ -140,6 +163,7 @@ services:
 
 volumes:
   pgdata:
+  pgdata_replica:
   crdb1:
   crdb2:
   crdb3:

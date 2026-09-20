@@ -168,6 +168,78 @@ docker compose --profile proy1 run --rm --no-deps app-crdb \
 - **RPO**: revise `evidence/falla-nodo-rpo.txt` — `version` debe seguir
   subiendo respecto al valor previo a la falla, nunca retroceder.
 
+### Paso 10 - Evaluación de la arquitectura alternativa (primario + réplica para E5)
+
+Para obtener la comparativa cuantitativa frente a la arquitectura distribuida, esta sección cubre dos experimentos sobre la arquitectura primario + réplica: la medición de latencias (lecturas contra la réplica, escrituras contra el primario) y unas pruebas de concurrencia (lost update vs. `SERIALIZABLE`) sobre el primario.
+
+#### 1. Levantar el primario y la réplica
+
+```bash
+docker compose up -d postgres postgres-replica
+docker compose ps   # confirma "healthy" en ambos
+```
+
+`postgres` y `postgres-replica` son dos contenedores Postgres **independientes**: no hay streaming replication real entre ellos, así que hay que sembrar el esquema y los datos en **ambos**.
+
+#### 2. Aplicar el esquema y cargar los datos de prueba en ambos nodos
+
+```bash
+for host in postgres postgres-replica; do
+  docker compose exec -T "$host" psql -U ti4601 -d ti4601 -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+  docker compose exec -T "$host" psql -U ti4601 -d ti4601 < sql-scripts/schema_postgres.sql
+  docker compose exec -T "$host" psql -U ti4601 -d ti4601 < sql-scripts/seed.sql
+done
+```
+
+#### 3. Verificar los servicios
+
+```bash
+docker compose ps
+```
+
+Opcionalmente, confirma que ambos nodos terminaron con las mismas filas (mismos `id`):
+
+```bash
+docker compose exec -T postgres psql -U ti4601 -d ti4601 -c "SELECT id, region_cuenta FROM cuenta ORDER BY region_cuenta;"
+docker compose exec -T postgres-replica psql -U ti4601 -d ti4601 -c "SELECT id, region_cuenta FROM cuenta ORDER BY region_cuenta;"
+```
+
+#### 4. Ejecutar el script de medición de latencias
+
+```bash
+docker compose --profile client run --rm --no-deps app python3 scripts/measure_latency_single_node.py \
+  --primary-host postgres \
+  --replica-host postgres-replica \
+  --port 5432 \
+  --user ti4601 \
+  --password ti4601 \
+  --dbname ti4601 \
+  --runs 50 \
+  --warmup 5 \
+  --csv evidence/e3-latencias-primario-replica.csv \
+| tee evidence/e3-latencias-primario-replica.txt
+```
+
+Esto mide el rendimiento (p50 y p99) de lecturas (siempre contra la réplica) y escrituras (siempre contra el primario), guardando las muestras detalladas en `evidence/e3-latencias-primario-replica.csv`. La salida trae 2 filas — una por operación (`read`/`write`) con su `node` (`replica`/`primario`) — porque en esta arquitectura el nodo que atiende cada operación nunca cambia, a diferencia del clúster de 3 regiones de CockroachDB.
+
+#### 5. Ejecutar el laboratorio de concurrencia (lost update vs. SERIALIZABLE)
+
+Este experimento mide qué pasa cuando varias transacciones escriben la misma cuenta al mismo tiempo en el **primario** (la réplica no participa: el fenómeno es de contención entre escrituras, no de enrutamiento lectura/escritura). Se corre dos veces, con distinto nivel de aislamiento, y cada corrida va a su propio archivo de evidencia:
+
+```bash
+# READ_COMMITTED: expone actualizaciones perdidas (lost update) sin errores visibles
+docker compose --profile client run --rm --no-deps app python3 scripts/stress_single_node.py \
+  --isolation READ_COMMITTED --workers 40 --retries 8 \
+| tee evidence/e5-concurrencia-read-committed.txt
+
+# SERIALIZABLE: aborta las carreras (SerializationFailure) y reintenta
+docker compose --profile client run --rm --no-deps app python3 scripts/stress_single_node.py \
+  --isolation SERIALIZABLE --workers 40 --retries 8 \
+| tee evidence/e5-concurrencia-serializable.txt
+```
+
+Cada corrida lanza 40 hilos que leen el saldo de la misma cuenta, esperan un instante y escriben `saldo - 1`, reportando cuántos commits fueron exitosos, cuántos abortos por serialización hubo, y el saldo final observado contra el esperado (`1000 − Commits OK`). Bajo `READ_COMMITTED` es normal ver 0 errores pero un saldo final muy por encima de lo esperado (las escrituras se pisan entre sí en silencio); bajo `SERIALIZABLE` es normal ver varios `SerializationFailure` pero un saldo final que sí cuadra con lo esperado. El script pisa el saldo de la cuenta objetivo (lo fija en 1000 antes de cada ráfaga).
+
 ### Para repetir desde cero
 
 ```bash

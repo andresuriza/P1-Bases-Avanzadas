@@ -14,10 +14,7 @@ from dataclasses import dataclass
 import psycopg
 
 
-ROWS = {
-    # "cr-sj": "10000000-0000-0000-0000-000000000001",
-    # "cr-limon": "10000000-0000-0000-0000-000000000002",
-}
+ROWS = {}
 
 
 @dataclass(frozen=True)

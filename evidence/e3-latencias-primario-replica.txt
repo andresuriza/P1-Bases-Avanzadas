@@ -1,0 +1,8 @@
+=== Arquitectura Alternativa (Primario: postgres | Réplica: postgres-replica) ===
+Cuentas seed detectadas (4): [UUID('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'), UUID('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'), UUID('cccccccc-cccc-cccc-cccc-cccccccccccc'), UUID('dddddddd-dddd-dddd-dddd-dddddddddddd')]
+
+operation node     n p50_ms p99_ms
+read      replica  50   0.486   0.967
+write     primario 50   1.595   2.427
+
+Muestras guardadas en: evidence/e3-latencias-primario-replica.csv
