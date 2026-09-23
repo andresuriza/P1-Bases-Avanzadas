@@ -1,0 +1,9 @@
+=== Lab concurrencia (primario+réplica) · SERIALIZABLE · workers=40 ===
+Cuenta objetivo: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+Saldo inicial:   1000
+Commits OK:              38
+SerializationFailure:    152
+Otros errores:           0
+Saldo final observado:   962.0
+Esperado si cada OK −1:  962.0
+Interpretación: SERIALIZABLE aborta carreras; con reintentos el saldo debe alinearse con 1000 − OK.
