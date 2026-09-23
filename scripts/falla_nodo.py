@@ -18,18 +18,13 @@ from pathlib import Path
 import psycopg
 
 
-# FUNCIONES DE UTILIDAD
+# Timestamp UTC para cada muestra
 def utc_now() -> str:
-    """
-    Genera una marca de tiempo (UTC estandar) para registrar cuándo ocurren los eventos.
-    """
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
 
+# Conexión nueva por intento, con timeouts cortos para no colgar la sonda
 def connect() -> psycopg.Connection:
-    """
-    Abre una conexión rápida a la base de datos con límites estrictos de tiempo de espera..
-    """
     return psycopg.connect(
         connect_timeout=2,
         options="-c statement_timeout=2000",
@@ -37,11 +32,8 @@ def connect() -> psycopg.Connection:
     )
 
 
-# OPERACIÓN DE ESCRITURA
+# Un solo UPDATE sobre la fila de control
 def write_once() -> None:
-    """
-    Actualiza una fila específica (id = 1) en la tabla controldisponibilidad, sumándole 1 a su versión actual.
-    """
     with connect() as conn:
         updated = conn.execute(
             """
@@ -58,18 +50,16 @@ def write_once() -> None:
             )
 
 
+# Lee el epoch de la falla si el archivo de señal ya existe
 def read_signal(path: Path) -> float | None:
-    """
-    Busca y lee la marca de tiempo de la falla del nodo en el archivo .epoch generado.
-    """
     try:
         return float(path.read_text(encoding="utf-8").strip())
     except (FileNotFoundError, ValueError):
         return None
 
 
+# Corre la sonda, guarda el CSV y calcula el RTO al terminar
 def main() -> int:
-    # Configuración y argumentos del script
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--duration", type=float, default=30)
     parser.add_argument("--interval", type=float, default=0.5)
@@ -82,11 +72,8 @@ def main() -> int:
     parser.add_argument("--csv", default="evidence/falla-nodo.csv")
     args = parser.parse_args()
 
-    # Lectura de argumentos
     signal_path = Path(args.signal_file)
     output_path = Path(args.csv)
-
-    # Crear directorio de evidencia
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     started = time.time()
@@ -99,38 +86,31 @@ def main() -> int:
     print("Fila objetivo: controldisponibilidad(id=1), RF=3 (ver evidence/cluster-inspect.txt)")
     print(f"Señal de falla: {signal_path}")
 
-    # Bucle de pruebas y medición
     while time.time() - started < args.duration:
-        # Estado inicial de la prueba
         attempt_started = time.time()
         perf_started = time.perf_counter_ns()
         status = "ok"
         error = ""
 
-        # Intento de escritura
         try:
             write_once()
         except Exception as exc:  # La clase concreta cambia según la causa.
             status = "error"
             error = f"{type(exc).__name__}: {str(exc).splitlines()[0]}"[:240]
 
-        # Medición de latencia y tiempo de finalización
         latency_ms = (time.perf_counter_ns() - perf_started) / 1_000_000
         completed_at = time.time()
-
-        # Detección de la falla del nodo
         signal_at = read_signal(signal_path)
 
-        # Evaluación de fase post-falla
+        # Clasifica la muestra según si terminó antes o después de la falla.
         phase = "before-stop"
-        if signal_at is not None and completed_at >= signal_at: # Se ejecutó la escritura después de la falla?
+        if signal_at is not None and completed_at >= signal_at:
             phase = "after-stop"
-            if status == "error": # No se pudo completar la escritura?
+            if status == "error":
                 failures_after_signal += 1
             elif first_ok_after_signal is None:
                 first_ok_after_signal = completed_at
 
-        # Guardar resultado de las mediciones
         sample = {
             "timestamp_utc": utc_now(),
             "epoch": f"{attempt_started:.6f}",
@@ -146,17 +126,13 @@ def main() -> int:
             f"{sample['timestamp_utc']} {phase:11} {status:5} "
             f"{latency_ms:8.3f} ms {error}"
         )
-
-        # Delay antes de la proxima prueba
         time.sleep(max(0.0, args.interval - (time.time() - attempt_started)))
 
-    # Guardar resultados (.csv)
     with output_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=samples[0].keys())
         writer.writeheader()
         writer.writerows(samples)
 
-    # Cálculos finales del RTO
     signal_at = read_signal(signal_path)
     print(f"\nMuestras: {output_path}")
     print(f"Errores después de la señal: {failures_after_signal}")
@@ -173,7 +149,6 @@ def main() -> int:
         "RPO se verifica aparte: la fila confirmada antes de la falla debe "
         "seguir presente y su version no debe retroceder."
     )
-
     return 0
 
 

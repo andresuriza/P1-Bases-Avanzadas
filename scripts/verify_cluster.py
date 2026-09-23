@@ -17,11 +17,8 @@ EXPECTED_REGIONS = {"cr-sj", "cr-limon", "us-east"}
 REGIONAL_TABLES = ("cliente", "cuenta", "movimiento")
 
 
-# FUNCIONES DE INSPECCIÓN DE INFRAESTRUCTURA Y CLÚSTER
+# Regiones con al menos un nodo vivo ahora mismo
 def live_regions(conn: psycopg.Connection) -> set[str]:
-    """
-    Consulta los nodos activos y devuelve sus respectivas regiones.
-    """
     rows = conn.execute(
         "SELECT locality FROM crdb_internal.gossip_nodes WHERE is_live"
     ).fetchall()
@@ -33,18 +30,14 @@ def live_regions(conn: psycopg.Connection) -> set[str]:
     }
 
 
+# Regiones que ya se agregaron a la base con ADD REGION
 def configured_regions(conn: psycopg.Connection) -> set[str]:
-    """
-    Consulta y devuelve las regiones geográficas que ya fueron registradas formalmente.
-    """
     rows = conn.execute("SHOW REGIONS FROM DATABASE ti4601").fetchall()
     return {str(row[1]) for row in rows}
 
 
+# Revisa que cliente/cuenta/movimiento sí quedaron como REGIONAL BY ROW
 def tablas_regional_by_row(conn: psycopg.Connection) -> bool:
-    """
-    Verifica en el esquema de las tablas exista el atributo REGIONAL BY ROW.
-    """
     for tabla in REGIONAL_TABLES:
         ddl = str(conn.execute(f"SHOW CREATE TABLE {tabla}").fetchone()[1]).upper()
         if "REGIONAL BY ROW" not in ddl:
@@ -52,22 +45,15 @@ def tablas_regional_by_row(conn: psycopg.Connection) -> bool:
     return True
 
 
-# FUNCIONES DE VERFICACIÓN DE DATOS Y ALTA DISPONIBILIDAD
+# Checa que el seed sí tenga clientes en las 3 regiones
 def cliente_cubre_las_tres_regiones(conn: psycopg.Connection) -> bool:
-    """
-    Verifica que las tablas en cada región geográfica se encuentren pobladas.
-    """
     rows = conn.execute("SELECT DISTINCT region_cliente FROM cliente").fetchall()
     return EXPECTED_REGIONS <= {str(row[0]) for row in rows}
 
 
+# Busca al menos un movimiento cuya cuenta_destino esté en otra región
 def movimiento_cruza_region(conn: psycopg.Connection) -> bool:
-    """
-    Valida que exista al menos una transacción entre cuentas de distintas regiones.
-    """
-    # Al menos un movimiento donde la cuenta_destino vive en una región
-    # distinta a region_movimiento (ver convención en schema.sql: la región
-    # del movimiento es la de la cuenta_origen).
+    # region_movimiento = región de la cuenta_origen (convención de schema.sql)
     row = conn.execute(
         """
         SELECT count(*)
@@ -79,10 +65,8 @@ def movimiento_cruza_region(conn: psycopg.Connection) -> bool:
     return row is not None and row[0] > 0
 
 
+# Confirma los 3 votantes de ControlDisponibilidad antes de hacer el chaos
 def control_disponibilidad_tiene_tres_votantes(conn: psycopg.Connection) -> bool:
-    """
-    Verifica que los rangos de la tabla control de disponibilidad posean tres réplicas votantes.
-    """
     rows = conn.execute(
         """
         SELECT voting_replicas
@@ -92,10 +76,8 @@ def control_disponibilidad_tiene_tres_votantes(conn: psycopg.Connection) -> bool
     return bool(rows) and all(len(row[0]) == 3 for row in rows)
 
 
+# Corre una verificación y la imprime como [ OK ]/[FAIL] con pista si falla
 def check(label: str, assertion: Callable[[], bool], hint: str) -> bool:
-    """
-    Ejecuta una aserción de verificación, manejando excepciones y mostrando el estado OK/FAIL con su pista.
-    """
     try:
         passed = assertion()
     except (psycopg.Error, IndexError, TypeError) as exc:
@@ -110,8 +92,8 @@ def check(label: str, assertion: Callable[[], bool], hint: str) -> bool:
     return False
 
 
+# Corre las 6 verificaciones y muestra el resultado final
 def main() -> int:
-    # Intentar conectarse a la base de datos
     try:
         conn = psycopg.connect(autocommit=True)
     except psycopg.Error as exc:
@@ -119,9 +101,7 @@ def main() -> int:
         print("       Pista: levante los tres nodos y compruebe `make proy1-status`.")
         return 1
 
-    # Si se abrió una conexión
     with conn:
-        # Realizar verificación del clúster y sus datos
         results = [
             check(
                 "tres nodos/localities vivos",
@@ -158,15 +138,13 @@ def main() -> int:
         ]
 
     passed = sum(results)
-
     print(f"\nResultado: {passed}/{len(results)} verificaciones.")
 
     if passed != len(results):
         print("El verificador no modificó el clúster. Corrija el primer FAIL y repita.")
         return 1
-    
-    print("Configuración lista para mediciones (E3) y falla de nodo (E4).")
 
+    print("Configuración lista para mediciones (E3) y falla de nodo (E4).")
     return 0
 
 
