@@ -98,7 +98,7 @@ def measure(
 def main() -> int:
     # Confuguración de parametros y validación
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--primary-host", default="postgres-primary", help="Host del nodo primario")
+    parser.add_argument("--primary-host", default="postgres", help="Host del nodo primario")
     parser.add_argument("--replica-host", default="postgres-replica", help="Host de la réplica de lectura")
     parser.add_argument("--port", type=int, default=5432, help="Puerto de PostgreSQL")
     parser.add_argument("--user", default="ti4601", help="Usuario de PostgreSQL")
